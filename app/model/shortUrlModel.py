@@ -17,3 +17,7 @@ class UrlInput(SQLModel):
 
 class ShortUrlOnly(SQLModel):
     short_url: str
+
+class ShortUrlViews(SQLModel):
+    short_key: str
+    views: int

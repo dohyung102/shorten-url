@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlmodel import Session
 
-from model.shortUrlModel import ShortUrlOnly, UrlInput, ShortUrl
+from model.shortUrlModel import ShortUrlOnly, UrlInput, ShortUrl, ShortUrlViews
 from database import get_session
 from crud import shortUrlCrud
 from main import get_session
@@ -28,7 +28,7 @@ def create_short_url(origin_url: UrlInput, request: Request, session: Session = 
     if db_short_url:
         # 해당 key가 만료되었다면 기간을 업데이트 합니다. 조회수 또한 함께 초기화 합니다.
         if db_short_url.expiration_date < datetime.now():
-            expiration_date = datetime.now() + timedelta(hours=min(max(24, origin_url.expiration_hour), 365))
+            expiration_date = datetime.now() + timedelta(hours=min(max(24, origin_url.expiration_hour), 24 * 365))
             shortUrlCrud.update_short_url(session, db_short_url.short_key, expiration_date)
         short_url = f'http://{host}/{db_short_url.short_key}'
         content = {
@@ -51,7 +51,7 @@ def create_short_url(origin_url: UrlInput, request: Request, session: Session = 
             else:
                 new_short_url = ShortUrl(
                     url = origin_url.url,
-                    expiration_date = datetime.now() + timedelta(hours=min(max(24, origin_url.expiration_hour), 365)),
+                    expiration_date = datetime.now() + timedelta(hours=min(max(24, origin_url.expiration_hour), 24 * 365)),
                     short_key = hashed_key
                 )
                 shortUrlCrud.create_short_url(session, new_short_url)
@@ -74,6 +74,15 @@ def redirect_short_url(short_key: str, session: Session = Depends(get_session)):
             shortUrlCrud.update_short_url_views(session, short_key)
             return RedirectResponse(url=db_short_url.url, status_code=301)
         shortUrlCrud.delete_short_url(session, short_key)
-    raise HTTPException(status_code=404, detail='there is no shorturl')    
-    
-            
+    raise HTTPException(status_code=404, detail='there is no shorturl')
+
+@router.get('/stat/{short_key}')
+def get_short_url_views(short_key: str, session: Session = Depends(get_session)):
+    db_short_url = shortUrlCrud.get_short_url_by_short_key(session, short_key)
+    if db_short_url:
+        content = {
+            'short_key': db_short_url.short_key,
+            'views': db_short_url.views
+        }
+        return content
+    raise HTTPException(status_code=404, detail='there is no shorturl')
