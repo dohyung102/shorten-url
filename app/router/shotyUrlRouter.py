@@ -3,6 +3,7 @@ import base62
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi.responses import RedirectResponse
 from sqlmodel import Session
 
 from model.shortUrlModel import ShortUrlOnly, UrlInput, ShortUrl
@@ -61,5 +62,18 @@ def create_short_url(origin_url: UrlInput, request: Request, session: Session = 
                 break
         # 5번의 중복 해시값을 생성하면 다시 시도해달라는 문구를 보내도록 했습니다.
         if hashing_count == 5:
-            return HTTPException(status_code=400, detail="retry please")
+            raise HTTPException(status_code=400, detail='retry please')
     return content
+
+@router.get('/{short_key}')
+def redirect_short_url(short_key: str, session: Session = Depends(get_session)):
+    db_short_url = shortUrlCrud.get_short_url_by_short_key(session, short_key)
+    if db_short_url:
+        #만료된 url의 경우 리다이렉트 하지 않고 데이터 삭제 처리를 했습니다.
+        if db_short_url.expiration_date > datetime.now():
+            shortUrlCrud.update_short_url_views(session, short_key)
+            return RedirectResponse(url=db_short_url.url, status_code=301)
+        shortUrlCrud.delete_short_url(session, short_key)
+    raise HTTPException(status_code=404, detail='there is no shorturl')    
+    
+            

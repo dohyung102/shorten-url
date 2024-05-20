@@ -30,3 +30,17 @@ def update_short_url(session: Session, key: str, date: datetime):
     session.add(session_short_url)
     session.commit()
     session.refresh(session_short_url)
+
+def delete_short_url(session: Session, key: str):
+    statement = select(shortUrlModel.ShortUrl).where(shortUrlModel.ShortUrl.short_key == key)
+    session_short_url = session.exec(statement).first()
+    session.delete(session_short_url)
+    session.commit()
+
+def update_short_url_views(session: Session, key: str):
+    statement = select(shortUrlModel.ShortUrl).where(shortUrlModel.ShortUrl.short_key == key)
+    session_short_url = session.exec(statement).first()
+    session_short_url.views += 1
+    session.add(session_short_url)
+    session.commit()
+    session.refresh(session_short_url)

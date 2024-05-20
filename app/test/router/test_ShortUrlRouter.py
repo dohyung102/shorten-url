@@ -11,15 +11,41 @@ SQLModel.metadata.create_all(engine)
 
 client = TestClient(app)
 
+class ShortUrl():
+    def __init__(self):
+        self.exist_short_url = ''
+    
+    def set_exist_short_url(self, url):
+        self.exist_short_url = url
+
+    def get_exist_short_url(self):
+        return self.exist_short_url
+
+short_url = ShortUrl()
+
 
 def test_create_short_url():
     data = {
-        'url': 'www.naver.com'
+        'url': 'https://fastapi.tiangolo.com/ko/'
     }
     response = client.post(
-        "/shorten",
+        '/shorten',
         json=data
     )
     assert response.status_code == 200
     content = response.json()
     assert 'short_url' in content
+    short_url.set_exist_short_url(content['short_url'])
+
+def test_redirect_short_url():
+    short_key = short_url.get_exist_short_url().split('/')[-1]
+    print(short_key)
+    response = client.get(
+        f'/{short_key}'
+    )
+
+def test_non_exist_short_url():
+    response = client.get(
+        '/adaaaadaddaaadaada'
+    )
+    assert response.status_code == 404
